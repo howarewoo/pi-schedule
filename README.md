@@ -12,6 +12,33 @@ the job picks the schedule.
 Jobs only fire while the pi session that created them is running. pi-schedule has no daemon, uses
 no OS crontab, and writes no files outside the session.
 
+## Features
+
+| Feature | What you get |
+| --- | --- |
+| Agent-chosen schedules | Recurring jobs use a standard 5-field cron expression that the agent picks, with an optional IANA timezone. |
+| One-shot delays | `in: "45m"` fires once, then removes itself. |
+| Wakes the session | When the session is idle, a fire starts a new turn. When the agent is busy, it arrives after the current tool calls. |
+| No pile-up | While an earlier fire is still waiting to be delivered, later matches are skipped. |
+| Survives reloads | Jobs are restored when the same session is reopened through `/reload`, `/resume`, or `pi -c`. Forks start with no jobs. |
+| Footer status | The footer shows how many jobs exist and when the next one fires. |
+| Cost guards | At most 10 jobs per session and at most one fire per minute. Each fired message explains how to cancel the job, and you can optionally cap a job with `maxRuns`. |
+| Lightweight | One small runtime dependency (croner), no daemon, and no files outside the session. |
+
+## See it in action
+
+In this session, the user asks the agent to watch a deploy status file. The agent picks the
+`* * * * *` schedule (every minute) and creates the job. The footer then shows the job and its next
+fire time:
+
+![A pi session where the user asks the agent to check deploy-status.txt every minute and report when staging finishes. The agent calls the schedule tool with cron "* * * * *", the tool replies with job 9124 and its next two fire times, and the footer shows "1 job, next 06:31 PM".](docs/images/schedule-created.png)
+
+Each fire wakes the idle session. On the first fire, staging is still deploying. On the second, the
+agent sees that staging finished, reports it, and cancels its own job, so the footer status
+disappears:
+
+![The same pi session two minutes later. pi-schedule fires run 1 and run 2 of job 9124. After run 1, the agent reads deploy-status.txt and reports that staging is still deploying. After run 2, it reports "Staging finished" with the deployed version and calls the schedule tool to cancel job 9124.](docs/images/schedule-fired.png)
+
 ## Install
 
 ```bash
