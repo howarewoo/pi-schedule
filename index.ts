@@ -99,8 +99,8 @@ export function createExtension(clock: Clock = systemClock) {
 				error(job, error) {
 					notify(`pi-schedule: job ${job.id} failed to fire: ${error instanceof Error ? error.message : String(error)}`, "error");
 				},
-				change() {
-					pi.appendEntry(STATE_TYPE, { jobs: scheduler.snapshot() });
+				change(persist) {
+					if (persist) pi.appendEntry(STATE_TYPE, { jobs: scheduler.snapshot() });
 					updateStatus();
 				},
 			},
@@ -203,6 +203,12 @@ export function createExtension(clock: Clock = systemClock) {
 			if (message.role === "custom" && message.customType === MESSAGE_TYPE) {
 				scheduler.delivered((message.details as { jobId: string }).jobId);
 			}
+		});
+
+		// A run that settles (including by abort, which returns queued steers to the editor) with nothing
+		// queued means every undelivered fire was lost; without this, `pending` would coalesce forever.
+		pi.on("agent_settled", async (_event, settledCtx) => {
+			if (!settledCtx.hasPendingMessages()) scheduler.resetPending();
 		});
 	};
 }

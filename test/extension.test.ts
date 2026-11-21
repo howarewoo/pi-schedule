@@ -55,6 +55,10 @@ function harness(branch: unknown[] = []) {
 			setStatus: (_key: string, text: string | undefined) => statuses.push(text),
 		},
 		sessionManager: { getBranch: () => branch },
+		pendingMessages: false,
+		hasPendingMessages() {
+			return this.pendingMessages;
+		},
 	};
 	createExtension(clock)(pi as any);
 	const run = (args: Record<string, unknown>) => tool.execute("call", args).then((r: any) => r.content[0].text as string);
@@ -103,6 +107,29 @@ describe("extension", () => {
 		assert.equal(await h.run({ action: "cancel", all: true }), "Cancelled 1 job(s).");
 		assert.equal(h.statuses.at(-1), undefined);
 		assert.deepEqual(h.entries.at(-1), { customType: STATE_TYPE, data: { jobs: [] } });
+	});
+
+	it("re-enables firing when a run settles without delivering the fire, and skips snapshots on coalesced matches", async () => {
+		const h = harness();
+		await h.handlers.session_start!({ reason: "startup" }, h.ctx);
+		await h.run({ action: "create", cron: "* * * * *", prompt: "Reassess" });
+
+		h.advance(MINUTE);
+		assert.equal(h.sent.length, 1);
+		const entries = h.entries.length;
+		h.advance(MINUTE);
+		assert.equal(h.sent.length, 1);
+		assert.equal(h.entries.length, entries, "coalesced match writes no snapshot");
+
+		h.ctx.pendingMessages = true;
+		await h.handlers.agent_settled!({ aborted: true }, h.ctx);
+		h.advance(MINUTE);
+		assert.equal(h.sent.length, 1, "a still-queued fire keeps coalescing");
+
+		h.ctx.pendingMessages = false;
+		await h.handlers.agent_settled!({ aborted: true }, h.ctx);
+		h.advance(MINUTE);
+		assert.equal(h.sent.length, 2, "a fire dropped by the abort no longer blocks later matches");
 	});
 
 	it("rejects invalid tool input with an error", async () => {

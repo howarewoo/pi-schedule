@@ -45,8 +45,11 @@ export interface SchedulerHooks {
 	/** Deliver a fire. Throwing reports the error and does not count the run. */
 	fire(job: Job, run: number): void;
 	error(job: Job, error: unknown): void;
-	/** Called after any create, cancel, or fire that changes the job set or run counts. */
-	change(): void;
+	/**
+	 * Called after any create, cancel, or wake. `persist` is true when the job set or run counts changed;
+	 * false when only a next fire time moved (a coalesced match).
+	 */
+	change(persist: boolean): void;
 }
 
 interface Entry {
@@ -100,7 +103,7 @@ export class Scheduler {
 			job.at = this.#clock.now() + parseDuration(spec.in!);
 		}
 		this.#add(job);
-		this.#hooks.change();
+		this.#hooks.change(true);
 		return job;
 	}
 
@@ -120,14 +123,14 @@ export class Scheduler {
 		const entry = this.#entries.get(id);
 		if (!entry) return false;
 		this.#remove(entry);
-		this.#hooks.change();
+		this.#hooks.change(true);
 		return true;
 	}
 
 	cancelAll(): number {
 		const count = this.#entries.size;
 		for (const entry of [...this.#entries.values()]) this.#remove(entry);
-		if (count) this.#hooks.change();
+		if (count) this.#hooks.change(true);
 		return count;
 	}
 
@@ -135,6 +138,11 @@ export class Scheduler {
 	delivered(id: string): void {
 		const entry = this.#entries.get(id);
 		if (entry) entry.pending = false;
+	}
+
+	/** Treat every undelivered fire as lost (e.g. dropped by an abort), so each job may fire again. */
+	resetPending(): void {
+		for (const entry of this.#entries.values()) entry.pending = false;
 	}
 
 	snapshot(): Job[] {
@@ -201,6 +209,7 @@ export class Scheduler {
 		if (now < entry.nextAt) return this.#arm(entry);
 
 		const { job } = entry;
+		let fired = false;
 		// Coalesce: skip this match while the previous fire has not reached the transcript.
 		if (!entry.pending) {
 			// Set before firing: delivery can be observed synchronously inside fire().
@@ -208,6 +217,7 @@ export class Scheduler {
 			try {
 				this.#hooks.fire(job, job.runs + 1);
 				job.runs++;
+				fired = true;
 			} catch (error) {
 				entry.pending = false;
 				this.#hooks.error(job, error);
@@ -221,7 +231,7 @@ export class Scheduler {
 			entry.nextAt = next;
 			this.#arm(entry);
 		}
-		this.#hooks.change();
+		this.#hooks.change(fired || finished);
 	}
 
 	#newId(): string {
