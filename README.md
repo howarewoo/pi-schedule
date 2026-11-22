@@ -202,10 +202,11 @@ npm run test:package
 ```
 
 `npm run check` runs lint, formatting, typecheck and tests. Tests run TypeScript directly through
-Node's type stripping with `node --test`. `npm run test:package` packs and installs the tarball in
-a temporary directory, then checks that Pi loads the production entrypoint and registers the
-`schedule` tool and command. It needs registry access for runtime dependencies, does not use model
-credentials and leaves your Pi settings unchanged.
+Node's type stripping with `node --test`. `npm run test:package` packs the tarball, checks its
+files and installs it offline in a temporary directory, then checks that the pinned Pi host loads
+the production entrypoint and registers the `schedule` tool and command. Run `npm ci` first so
+runtime dependencies are in the npm cache. It does not use model credentials and leaves your Pi
+settings unchanged.
 
 Oxlint checks correctness rules; warnings fail the lint command. Run `npm run lint:fix` for safe
 lint fixes and `npm run format` to apply Oxfmt formatting. Formatting skips the generated lockfile
