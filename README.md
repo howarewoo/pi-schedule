@@ -209,8 +209,7 @@ may fetch registry metadata for runtime dependencies. It does not use model cred
 your Pi settings unchanged.
 
 Oxlint checks correctness rules; warnings fail the lint command. Run `npm run lint:fix` for safe
-lint fixes and `npm run format` to apply Oxfmt formatting. Formatting skips the generated lockfile
-and the managed Pullfrog workflow.
+lint fixes and `npm run format` to apply Oxfmt formatting. Formatting skips the generated lockfile.
 
 To try the extension from a local checkout without installing it, run
 `pi -e /absolute/path/to/pi-schedule/index.ts`. The root `index.ts` re-exports the implementation
