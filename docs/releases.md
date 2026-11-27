@@ -126,7 +126,7 @@ is listed instead of its branch commits, and rebase merges may produce multiple 
 
    **Review and enrich the generated section** with migration, Pi compatibility and relevant
    tool, command or session-entry changes. Commit metadata is only a starting point. Do not
-   promise verification that has not run. Keep README installation/migration examples current.
+   promise verification that has not run. Keep README and [installation guide](installation.md) examples current.
 
    Missing or nonancestor tags, shallow/incomplete history, an empty range, unstable versions
    and duplicate version headings fail before writing. Fix the input or fetch full history;
